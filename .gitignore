@@ -179,7 +179,5 @@ data/
 .project
 .pydevproject
 /logs/
-<<<<<<< HEAD
 hw1/roble/expert_data/unlabelled/
-=======
->>>>>>> main
+.vscode
