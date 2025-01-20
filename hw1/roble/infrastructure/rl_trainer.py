@@ -1,6 +1,8 @@
 from collections import OrderedDict
 import numpy as np
 import time
+import matplotlib.pyplot as plt
+plt.switch_backend('Agg')
 
 import gym
 import torch, pickle
@@ -93,7 +95,7 @@ class RL_Trainer(object):
         except:
             pass
         
-        self.add_wrappers()
+        # self.add_wrappers()
         self._agent = agent_class(self._env, **combined_params)
         self._log_video = False
         self._log_metrics = True
@@ -126,6 +128,8 @@ class RL_Trainer(object):
         # init vars at beginning of training
         self._total_envsteps = 0
         self._start_time = time.time()
+        
+        idm_loss_curve = []
 
         for itr in range(n_iter):
             print("\n\n********** Iteration %i ************"%itr)
@@ -163,7 +167,26 @@ class RL_Trainer(object):
                 idm_training_logs = self.train_idm()
 
                 # TODO: create a figure from the loss curve in idm_training_logs and add it to your report
-                figure = None
+                idm_losses = [log['Training Loss IDM'] for log in idm_training_logs]
+                idm_loss_curve.extend(idm_losses)
+
+                # Plot the loss curve
+                plt.figure()
+                plt.plot(idm_loss_curve, label="IDM Training Loss")
+                plt.xlabel("Training Steps")
+                plt.ylabel("Loss")
+                plt.title("IDM Loss Curve")
+                plt.legend()
+                plt.grid(True)
+
+                # Save the figure to the log directory
+                figure_path = f"{self._params['logging']['logdir']}/idm_loss_curve_itr_{itr}.png"
+                plt.savefig(figure_path)
+                plt.close()
+
+                print(f"IDM loss curve saved to {figure_path}")
+
+                # figure = None
                 
                 # Don't change
                 self._agent.reset_replay_buffer()
@@ -226,26 +249,38 @@ class RL_Trainer(object):
             envsteps_this_batch: the sum over the numbers of environment steps in paths
             train_video_paths: paths which also contain videos for visualization purposes
         """
-        # TODO decide whether to load training data or use the current policy to collect more data
+        print("\nCollecting data to be used for training...")
+        
+        # DONE TODO decide whether to load training data or use the current policy to collect more data
         # HINT: depending on if it's the first iteration or not, decide whether to either
             # (1) load the data. In this case you can directly return as follows
             # ``` return loaded_paths, 0, None ```
+        if itr == 0:
+            print("\nLoading initial expert data...")
+            with open(load_initial_expertdata, 'rb') as file:
+                loaded_paths = pickle.load(file)
+            for loaded_path in loaded_paths:
+                loaded_path["infos"] = []
+            return loaded_paths, 0, None
+        
 
             # (2) collect `self.params['batch_size']` transitions
-        # TODO collect `batch_size` samples to be used for training
+        # DONE TODO collect `batch_size` samples to be used for training
         # HINT1: use sample_trajectories from utils
         # HINT2: you want each of these collected rollouts to be of length self.params['ep_len']
-
-        print("\nCollecting data to be used for training...")
-
-        paths, envsteps_this_batch = TODO
+        paths, envsteps_this_batch = utils.sample_trajectories(
+            self._env,
+            collect_policy,
+            batch_size,
+            self._params['env']['max_episode_length']
+        )
         # collect more rollouts with the same policy, to be saved as videos in tensorboard
         # note: here, we collect MAX_NVIDEO rollouts, each of length MAX_VIDEO_LEN
 
         train_video_paths = None
         if self._log_video:
             print('\nCollecting train rollouts to be used for saving videos...')
-            ## TODO look in utils and implement sample_n_trajectories
+            ## DONE TODO look in utils and implement sample_n_trajectories
             train_video_paths = utils.sample_n_trajectories(self._env, collect_policy, MAX_NVIDEO, MAX_VIDEO_LEN, True)
         return paths, envsteps_this_batch, train_video_paths
 
@@ -253,15 +288,15 @@ class RL_Trainer(object):
         print('\nTraining agent using sampled data from replay buffer...')
         all_logs = []
         for train_step in range(self._params['alg']['num_agent_train_steps_per_iter']):
-            # TODO sample some data from the data buffer
+            # DONE TODO sample some data from the data buffer
             # HINT1: use the agent's sample function
             # HINT2: how much data = self._params['train_batch_size']
-            ob_batch, ac_batch, re_batch, next_ob_batch, terminal_batch = TODO
+            ob_batch, ac_batch, re_batch, next_ob_batch, terminal_batch = self._agent.sample(self._params['alg']['train_batch_size'])
 
-            # TODO use the sampled data to train an agent
+            # DONE TODO use the sampled data to train an agent
             # HINT: use the agent's train function
             # HINT: keep the agent's training log for debugging
-            train_log = TODO
+            train_log = self._agent.train(ob_batch, ac_batch, re_batch, next_ob_batch, terminal_batch)
             all_logs.append(train_log)
         return all_logs
 
@@ -269,24 +304,28 @@ class RL_Trainer(object):
         print('\nTraining agent using sampled data from replay buffer...')
         all_logs = []
         for train_step in range(self._params['alg']['num_idm_train_steps_per_iter']):
-            # TODO sample some data from the data buffer
+            # DONE TODO sample some data from the data buffer
             # HINT1: use the agent's sample function
             # HINT2: how much data = self._params['train_batch_size']
-            ob_batch, ac_batch, re_batch, next_ob_batch, terminal_batch = TODO
+            ob_batch, ac_batch, re_batch, next_ob_batch, terminal_batch = self._agent.sample(self._params['alg']['train_batch_size'])
+        
 
-            # TODO use the sampled data to train an agent
+            # DONE TODO use the sampled data to train an agent
             # HINT: use the agent's train_idm function
             # HINT: keep the agent's training log for debugging
-            train_log = TODO
+            train_log = self._agent.train_idm(ob_batch, ac_batch, re_batch, next_ob_batch, terminal_batch)
             all_logs.append(train_log)
         return all_logs
 
     def do_relabel_with_expert(self, expert_policy, paths):
         print("\nRelabelling collected observations with labels from an expert policy...")
 
-        # TODO relabel collected obsevations (from our policy) with labels from an expert policy
+        # DONE TODO relabel collected obsevations (from our policy) with labels from an expert policy
         # HINT: query the policy (using the get_action function) with paths[i]["observation"]
         # and replace paths[i]["action"] with these expert labels
+        for path in paths:
+            expert_actions = expert_policy.get_action(path["observation"])
+            path["action"] = expert_actions
         return paths
 
     ####################################
@@ -337,10 +376,11 @@ class RL_Trainer(object):
             logs.update(last_log)
             logs["reward"] = [path["reward"] for path in paths]
             logs["eval_reward"] = [path["reward"] for path in eval_paths]
-            for key in paths[0]["infos"][0]:
-                logs[str(key)] = [info[key] for path in paths for info in path["infos"]]
-                # logs[str(key)] = [value[key] for value in logs[str(key)]]
-                logs["eval_"+ str(key)] = [info[key] for path in eval_paths for info in path["infos"]]
+            if paths[0]["infos"] != []:
+                for key in paths[0]["infos"][0]:
+                    logs[str(key)] = [info[key] for path in paths for info in path["infos"]]
+                    # logs[str(key)] = [value[key] for value in logs[str(key)]]
+                    logs["eval_"+ str(key)] = [info[key] for path in eval_paths for info in path["infos"]]
             if itr == 0:
                 self._initial_return = np.mean(train_returns)
             logs["Initial_DataCollection_AverageReturn"] = self._initial_return

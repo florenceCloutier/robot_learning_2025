@@ -23,7 +23,7 @@ class BCAgent(BaseAgent):
 
         self.idm_params = kwargs
         
-        # TODO: Adjust the input dimension of the IDM (hint: it's not the same as the actor as it takes both obs and next_obs)
+        # **NOT SURE** TODO: Adjust the input dimension of the IDM (hint: it's not the same as the actor as it takes both obs and next_obs)
         self.idm_params['ob_dim'] *= 2
         
         self._idm = MLPPolicySL(
@@ -67,14 +67,16 @@ class BCAgent(BaseAgent):
             }
             
             with torch.no_grad():
-                # TODO: create the input to the IDM with observations and next_observations
-                full_input = np.concatenate((observations, next_observations), axis=1)
-                # TODO: query the IDM for the action (use one of the policy methods)
-                action = self._idm.get_action(full_input)
+                # DONE TODO: create the input to the IDM with observations and next_observations
+                full_input = torch.cat([observations, next_observations], dim=1)
+                # DONE TODO: query the IDM for the action (use one of the policy methods)
+                action = self._idm.forward(full_input)  # Forward pass
+                # action = action_distribution.sample()  # Sample action from dist
 
-            ep_labelled_data["observation"] = observations.squeeze().numpy()
-            ep_labelled_data["next_observation"] = next_observations.squeeze().numpy()
-            ep_labelled_data["action"] = action.squeeze()
+
+            ep_labelled_data["observation"] = observations.cpu().numpy()
+            ep_labelled_data["next_observation"] = next_observations.cpu().numpy()
+            ep_labelled_data["action"] = action.cpu().numpy()
 
             all_labelled_data.append(ep_labelled_data)
             print("Index: ", episode_idx, "was labelled")

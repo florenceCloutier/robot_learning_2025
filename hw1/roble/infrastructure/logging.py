@@ -331,6 +331,7 @@ class Logger(object):
         for video_idx in range(len(video_frames)):
             clip = ImageSequenceClip(list(video_frames[video_idx]), fps=fps)
             clip_name = f'{name}_step_{step}_video{video_idx+1}.mp4'
+            string = str(self._log_video_path / clip_name)
             clip.write_videofile(str(self._log_video_path / clip_name), fps=fps, verbose=False)
             
     def log_paths_as_videos(self, paths, step, max_videos_to_save=2, fps=10, video_title='video'):
