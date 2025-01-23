@@ -88,7 +88,7 @@ class MLPPolicy(BasePolicy, nn.Module, metaclass=abc.ABCMeta):
         obs_tensor = torch.FloatTensor(obs).to(ptu.device)
         with torch.no_grad():
             action_distribution = self.forward(obs_tensor)
-        action = action_distribution.sample()
+        action = action_distribution.mean
         return action.cpu().numpy()
 
     # update/train this policy
@@ -108,16 +108,14 @@ class MLPPolicy(BasePolicy, nn.Module, metaclass=abc.ABCMeta):
         else:
             device = next(self._mean_net.parameters()).device
             observation = observation.to(device)
-
             if self._deterministic:
                 ##  TODO output for a deterministic policy
-                action_distribution = self._mean_net(observation)
+                action = self._mean_net(observation)
+                return action
             else:
-                
                 ## DONE TODO output for a stochastic policy
                 mean = self._mean_net(observation)
-                std = self._std.exp() # TODO not sure... 
-                action_distribution = distributions.Normal(mean, std)
+                action_distribution = distributions.Normal(mean, self._std)
         return action_distribution
     ##################################
 
@@ -148,14 +146,15 @@ class MLPPolicySL(MLPPolicy):
         obs_tensor = torch.FloatTensor(observations).to(ptu.device)
         actions_tensor = torch.FloatTensor(actions).to(ptu.device)
         
+        self._optimizer.zero_grad()
+        
         # Forward pass to get the predicted actions
-        predicted_action_distribution = self.forward(obs_tensor)
+        action_distribution = self.forward(obs_tensor)
         
         # TODO: update the policy and return the loss
-        loss = self._loss(predicted_action_distribution.mean, actions_tensor)
+        loss = self._loss(action_distribution.rsample(), actions_tensor)
         
         # Gradient update
-        self._optimizer.zero_grad()
         loss.backward()
         self._optimizer.step()
         

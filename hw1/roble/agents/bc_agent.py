@@ -98,3 +98,4 @@ class BCAgent(BaseAgent):
 
     def reset_replay_buffer(self):
         self._replay_buffer = ReplayBuffer(self._max_replay_buffer_size)
+        

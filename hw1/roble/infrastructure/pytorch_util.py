@@ -63,7 +63,7 @@ def build_mlp(
 
 device = None
 
-def init_gpu(use_gpu=True, gpu_id=0):
+def init_gpu(use_gpu=False, gpu_id=0):
     global device
     if torch.cuda.is_available() and use_gpu:
         device = torch.device("cuda:" + str(gpu_id))

@@ -151,7 +151,7 @@ class RL_Trainer(object):
                 itr,
                 initial_expertdata,
                 collect_policy,
-                self._params['alg']['batch_size']
+                self._params['alg']['train_batch_size']
             )  # HW1: implement this function below
             paths, envsteps_this_batch, train_video_paths = training_returns
             self._total_envsteps += envsteps_this_batch
@@ -195,7 +195,7 @@ class RL_Trainer(object):
                     itr,
                     initial_expertdata,
                     collect_policy,
-                    self._params['alg']['batch_size']
+                    self._params['alg']['train_batch_size']
                 )
                 paths, envsteps_this_batch, train_video_paths = unlabelled_data
                 self._agent.use_idm(paths)
@@ -215,6 +215,7 @@ class RL_Trainer(object):
 
             # train agent (using sampled data from replay buffer)
             training_logs = self.train_agent()  # HW1: implement this function below
+            # training_logs = [0]
 
             # log/save
             if self._log_video or self._log_metrics:
